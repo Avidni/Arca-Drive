@@ -70,7 +70,8 @@ function MfaChallengeForm() {
       return;
     }
 
-    const redirect = searchParams.get("redirect") || "/dashboard";
+    const raw = searchParams.get("redirect") || "/dashboard";
+    const redirect = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
     router.push(redirect);
     router.refresh();
   };

@@ -33,6 +33,10 @@ function LoginForm() {
     if (!email.trim()) { setError("Please enter your email."); setLoading(false); return; }
     if (!password) { setError("Please enter your password."); setLoading(false); return; }
 
+    // Only allow same-origin relative redirects to avoid open redirect.
+    const rawRedirect = searchParams.get("redirect") || "/dashboard";
+    const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/dashboard";
+
     const { data, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(), password,
     });
@@ -51,14 +55,13 @@ function LoginForm() {
         (f) => f.factor_type === "totp" && f.status === "verified"
       );
       if (hasVerifiedTotp) {
-        const redirect = searchParams.get("redirect") || "/dashboard";
         router.push(`/login/mfa?redirect=${encodeURIComponent(redirect)}`);
         router.refresh();
         return;
       }
     }
 
-    router.push(searchParams.get("redirect") || "/dashboard");
+    router.push(redirect);
     router.refresh();
   };
 
