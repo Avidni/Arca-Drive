@@ -64,6 +64,7 @@ npm install
    - `supabase/migrations/00002_rls_policies.sql`
    - `supabase/migrations/00003_security_settings.sql`
    - `supabase/migrations/00004_files_category.sql`
+   - `supabase/migrations/00005_upload_limits.sql`
 3. From **Project Settings → API**, copy the **Project URL**, the **anon** key, and the **service_role** key.
 
 **Creating users** — Arca Drive has **no public sign-up** by design (it's a personal drive). Create each user yourself:
