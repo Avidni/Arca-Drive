@@ -41,3 +41,6 @@ Thumbs.db
 
 # local tooling
 .impeccable/
+
+# claude code local preview config
+.claude/

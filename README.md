@@ -145,6 +145,10 @@ Found a vulnerability? Please open a private report rather than a public issue.
 
 ---
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch/PR workflow, coding conventions, and how to report security issues. `main` is protected: changes land via pull request with CI (lint, typecheck, build) passing.
+
 ## License
 
 [MIT](LICENSE) © Avidni
