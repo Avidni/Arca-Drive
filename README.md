@@ -108,7 +108,8 @@ Fill in `.env.local`:
 | `R2_BUCKET_NAME` | **server-only** | Bucket name |
 | `R2_ENDPOINT` | **server-only** | `https://<account_id>.r2.cloudflarestorage.com` |
 | `R2_PUBLIC_BASE_URL` | **server-only** | Public URL prefix for objects |
-| `NEXT_PUBLIC_MAX_*_UPLOAD_MB` | public | Per-category upload limits (also enforced server-side) |
+
+Per-category upload limits are configured in **Settings → Upload limits** (stored in the database and enforced server-side), not via environment variables.
 
 > `.env.local` is gitignored. **Never commit real credentials.** If a key is ever exposed, rotate it immediately in Supabase / Cloudflare.
 

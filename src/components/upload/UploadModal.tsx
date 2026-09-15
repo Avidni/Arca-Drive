@@ -8,6 +8,7 @@ import { Upload, X, Check, AlertCircle, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import type { CategoryType, UploadFileItem } from "@/types";
+import { DEFAULT_UPLOAD_LIMITS_MB, limitsFromSettings, type UploadLimitsMb } from "@/lib/upload-limits";
 
 interface UploadModalProps {
   category: CategoryType;
@@ -47,13 +48,6 @@ const ACCEPT: Record<string, Record<string, string[]>> = {
   },
 };
 
-const MAX_SIZE_MB: Record<CategoryType, number> = {
-  image: parseInt(process.env.NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB || "25"),
-  video: parseInt(process.env.NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB || "500"),
-  document: parseInt(process.env.NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB || "50"),
-  files: parseInt(process.env.NEXT_PUBLIC_MAX_FILES_UPLOAD_MB || "500"),
-};
-
 const CATEGORY_LABEL: Record<CategoryType, string> = {
   image: "Images",
   video: "Videos",
@@ -65,11 +59,20 @@ export function UploadModal({ category, open, onClose, onUploadComplete, folderI
   const [files, setFiles] = useState<UploadFileItem[]>([]);
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const xhrRefs = useRef<Record<string, XMLHttpRequest>>({});
+  // Configured upload limits, loaded from Settings. A ref mirrors the state so
+  // the react-dropzone validator (created once) always reads current values.
+  const [limits, setLimits] = useState<UploadLimitsMb>(DEFAULT_UPLOAD_LIMITS_MB);
+  const limitsRef = useRef<UploadLimitsMb>(DEFAULT_UPLOAD_LIMITS_MB);
 
   useEffect(() => {
     if (open) {
       fetch("/api/security/settings").then((r) => r.ok && r.json()).then((d) => {
         if (d?.default_upload_visibility) setVisibility(d.default_upload_visibility);
+        if (d) {
+          const next = limitsFromSettings(d);
+          limitsRef.current = next;
+          setLimits(next);
+        }
       }).catch(() => {});
     }
   }, [open]);
@@ -88,7 +91,7 @@ export function UploadModal({ category, open, onClose, onUploadComplete, folderI
     onDrop,
     accept: ACCEPT[category],
     validator: (file) => {
-      const maxMb = MAX_SIZE_MB[category];
+      const maxMb = limitsRef.current[category];
       if (file.size > maxMb * 1024 * 1024) {
         return { code: "file-too-large", message: `File exceeds ${maxMb} MB limit.` };
       }
@@ -223,6 +226,7 @@ export function UploadModal({ category, open, onClose, onUploadComplete, folderI
           ) : (
             <p className="text-sm text-muted-foreground">Drag & drop files here, or click to select</p>
           )}
+          <p className="mt-1 text-xs text-muted-foreground">Up to {limits[category]} MB per file</p>
         </div>
 
         <div className="flex items-center gap-3">

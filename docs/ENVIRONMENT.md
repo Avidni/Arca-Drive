@@ -10,7 +10,7 @@ Use the `.env.example` file as the source template.
 2. `SUPABASE_SERVICE_ROLE_KEY` must remain server-side only.
 3. `R2_SECRET_ACCESS_KEY` must remain server-side only.
 4. R2 presign operations must use server-side credentials only.
-5. Upload limits should be configurable through environment variables rather than hard-coded.
+5. Upload limits are configured per user in Settings (stored in the database) and enforced server-side — they are not environment variables.
 
 ## Required Variables
 ### App
@@ -37,13 +37,6 @@ Use the `.env.example` file as the source template.
 | `R2_ENDPOINT` | Yes | Server only | S3-compatible R2 endpoint |
 | `R2_PUBLIC_BASE_URL` | Yes | Server only | Public base URL fallback for media objects |
 
-### Upload Limits
-| Variable | Required | Scope | Purpose |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB` | Yes | Client/Server | Max image upload size |
-| `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB` | Yes | Client/Server | Max video upload size |
-| `NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB` | Yes | Client/Server | Max document upload size |
-
 ### Optional
 | Variable | Required | Scope | Purpose |
 | --- | --- | --- | --- |
@@ -69,11 +62,6 @@ R2_BUCKET_NAME=
 R2_ENDPOINT=
 R2_PUBLIC_BASE_URL=
 
-# Upload Limits
-NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB=25
-NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB=500
-NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB=50
-
 # Optional
 NODE_ENV=development
 ```
@@ -88,14 +76,18 @@ NODE_ENV=development
 - The app should consistently generate URLs from one chosen public base.
 
 ### Upload Limits
-Suggested starting defaults:
+Upload limits are **not** environment variables. They are configured per user
+in **Settings → Upload limits** and stored in the `user_security_settings`
+table. Default values (applied until a user changes them):
 - Images: `25 MB`
 - Videos: `500 MB`
 - Documents: `50 MB`
+- Files: `500 MB`
 
-These should be validated:
-- client-side for fast feedback
-- server-side for enforcement
+They are enforced:
+- client-side in the upload dialog for fast feedback
+- server-side in the R2 presign route (authoritative) — reading each user's
+  configured values from the database
 
 ## Secrets Handling
 ### Never Expose in Browser
@@ -113,7 +105,6 @@ These should be validated:
 - `NEXT_PUBLIC_MEDIA_BASE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- upload limit `NEXT_PUBLIC_` variables
 
 ## Local Development Notes
 - Keep local `.env.local` out of version control.

@@ -6,8 +6,14 @@ import { getPublicEnv } from "@/lib/env";
 import { formatBytes } from "@/lib/utils";
 import { calculateStorageSummary } from "@/lib/files/storage";
 import {
+  DEFAULT_UPLOAD_LIMITS_MB, limitsFromSettings, UPLOAD_CATEGORIES,
+  UPLOAD_LIMIT_COLUMNS, MIN_UPLOAD_LIMIT_MB, MAX_UPLOAD_LIMIT_MB,
+  type UploadLimitsMb,
+} from "@/lib/upload-limits";
+import type { CategoryType } from "@/types";
+import {
   HardDrive, Globe, Database, Sun, Moon, Shield, Key, Mail, Eye, EyeOff, Loader2,
-  Smartphone, Check, X, ChevronRight, AlertTriangle, Lock,
+  Smartphone, Check, X, ChevronRight, AlertTriangle, Lock, UploadCloud,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { TotpEnrollmentDialog } from "@/components/security/TotpEnrollmentDialog";
@@ -33,6 +39,11 @@ export default function SettingsPage() {
   const [requireEmailOtp, setRequireEmailOtp] = useState(false);
   const [defaultVisibility, setDefaultVisibility] = useState<"public" | "private">("public");
   const [settingsLoading, setSettingsLoading] = useState(true);
+
+  // Upload limits (MB per category), configured here and enforced server-side.
+  const [uploadLimits, setUploadLimits] = useState<UploadLimitsMb>(DEFAULT_UPLOAD_LIMITS_MB);
+  const [savingLimits, setSavingLimits] = useState(false);
+  const [limitsMessage, setLimitsMessage] = useState<string | null>(null);
 
   // Step-up state for changing security settings
   const [stepUpRequired, setStepUpRequired] = useState(false);
@@ -66,6 +77,7 @@ export default function SettingsPage() {
         setRequireMfaPrivate(data.require_mfa_for_private_files ?? false);
         setRequireEmailOtp(data.require_email_otp_for_sensitive_actions ?? false);
         setDefaultVisibility(data.default_upload_visibility ?? "public");
+        setUploadLimits(limitsFromSettings(data));
       }
     } finally {
       setSettingsLoading(false);
@@ -142,6 +154,46 @@ export default function SettingsPage() {
     setPendingSettingsChange({ default_upload_visibility: v });
     setStepUpReason("Changing upload visibility requires additional verification.");
     setStepUpRequired(true);
+  };
+
+  const handleLimitChange = (category: CategoryType, raw: string) => {
+    const parsed = parseInt(raw, 10);
+    const value = Number.isFinite(parsed) ? parsed : MIN_UPLOAD_LIMIT_MB;
+    setUploadLimits((prev) => ({ ...prev, [category]: value }));
+    setLimitsMessage(null);
+  };
+
+  const saveUploadLimits = async () => {
+    // Clamp to the allowed range before sending so the UI matches what the
+    // server (and DB check constraint) will accept.
+    const clamped: UploadLimitsMb = { ...uploadLimits };
+    const payload: Record<string, number> = {};
+    for (const category of UPLOAD_CATEGORIES) {
+      const v = Math.min(Math.max(Math.floor(uploadLimits[category] || MIN_UPLOAD_LIMIT_MB), MIN_UPLOAD_LIMIT_MB), MAX_UPLOAD_LIMIT_MB);
+      clamped[category] = v;
+      payload[UPLOAD_LIMIT_COLUMNS[category]] = v;
+    }
+    setUploadLimits(clamped);
+    setSavingLimits(true);
+    setLimitsMessage(null);
+    try {
+      const res = await fetch("/api/security/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUploadLimits(limitsFromSettings(data));
+        setLimitsMessage("Saved");
+      } else {
+        setLimitsMessage("Failed to save");
+      }
+    } catch {
+      setLimitsMessage("Failed to save");
+    } finally {
+      setSavingLimits(false);
+    }
   };
 
   const handleDisableTotp = async () => {
@@ -317,6 +369,56 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Upload limits */}
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-4">
+          <UploadCloud className="h-4 w-4" />
+          Upload limits
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Maximum file size per category, in megabytes ({MIN_UPLOAD_LIMIT_MB}–{MAX_UPLOAD_LIMIT_MB} MB). Enforced on every upload.
+        </p>
+        <div className="space-y-3">
+          {(UPLOAD_CATEGORIES).map((category) => {
+            const labels: Record<CategoryType, string> = {
+              image: "Images", video: "Videos", document: "Documents", files: "Files",
+            };
+            return (
+              <div key={category} className="flex items-center justify-between gap-4">
+                <label htmlFor={`limit-${category}`} className="text-sm text-foreground">{labels[category]}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`limit-${category}`}
+                    type="number"
+                    min={MIN_UPLOAD_LIMIT_MB}
+                    max={MAX_UPLOAD_LIMIT_MB}
+                    value={uploadLimits[category]}
+                    onChange={(e) => handleLimitChange(category, e.target.value)}
+                    disabled={settingsLoading || savingLimits}
+                    className="w-24 rounded-lg border border-input bg-background px-3 py-1.5 text-right text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                  />
+                  <span className="text-xs text-muted-foreground">MB</span>
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {limitsMessage && (
+              <span className={`text-xs ${limitsMessage === "Saved" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+                {limitsMessage}
+              </span>
+            )}
+            <button
+              onClick={saveUploadLimits}
+              disabled={settingsLoading || savingLimits}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {savingLimits ? "Saving..." : "Save limits"}
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Storage */}
       <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-4">
@@ -375,8 +477,8 @@ export default function SettingsPage() {
             <span className="text-muted-foreground">Supabase {env.SUPABASE_URL ? "configured" : "not configured"}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-yellow-400" />
-            <span className="text-muted-foreground">Upload limits: {env.MAX_IMAGE_UPLOAD_MB}MB images, {env.MAX_VIDEO_UPLOAD_MB}MB videos, {env.MAX_DOCUMENT_UPLOAD_MB}MB documents, {env.MAX_FILES_UPLOAD_MB}MB files</span>
+            <span className="h-2 w-2 rounded-full bg-green-400" />
+            <span className="text-muted-foreground">Upload limits: {uploadLimits.image}MB images, {uploadLimits.video}MB videos, {uploadLimits.document}MB documents, {uploadLimits.files}MB files</span>
           </div>
         </div>
       </section>

@@ -2,15 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePresignedUploadUrl } from "@/lib/r2/presign";
 import { presignSchema } from "@/lib/validators/files";
-import { getPublicEnv } from "@/lib/env";
-
-const env = getPublicEnv();
-const MAX_MB_BY_CATEGORY: Record<string, number> = {
-  image: env.MAX_IMAGE_UPLOAD_MB,
-  video: env.MAX_VIDEO_UPLOAD_MB,
-  document: env.MAX_DOCUMENT_UPLOAD_MB,
-  files: env.MAX_FILES_UPLOAD_MB,
-};
+import { limitsFromSettings, UPLOAD_LIMIT_COLUMNS } from "@/lib/upload-limits";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -49,11 +41,19 @@ export async function POST(request: Request) {
   }
 
   // Enforce upload size limit server-side (client-side dropzone check is UX only,
-  // and can be bypassed by calling this endpoint directly).
-  const maxBytes = (MAX_MB_BY_CATEGORY[category] ?? 0) * 1024 * 1024;
-  if (maxBytes > 0 && fileSize > maxBytes) {
+  // and can be bypassed by calling this endpoint directly). Limits are the
+  // user's configured Settings values; defaults apply until they change them.
+  const { data: settingsRow } = await supabase
+    .from("user_security_settings")
+    .select(Object.values(UPLOAD_LIMIT_COLUMNS).join(","))
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const limitMb = limitsFromSettings(settingsRow as Record<string, unknown> | null)[category];
+  const maxBytes = limitMb * 1024 * 1024;
+  if (fileSize > maxBytes) {
     return NextResponse.json(
-      { error: `File exceeds ${MAX_MB_BY_CATEGORY[category]} MB limit for ${category}` },
+      { error: `File exceeds ${limitMb} MB limit for ${category}` },
       { status: 413 }
     );
   }

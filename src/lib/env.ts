@@ -14,10 +14,6 @@ export function getPublicEnv() {
     MEDIA_BASE_URL: process.env.NEXT_PUBLIC_MEDIA_BASE_URL || "",
     SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-    MAX_IMAGE_UPLOAD_MB: parseInt(process.env.NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB || "25"),
-    MAX_VIDEO_UPLOAD_MB: parseInt(process.env.NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB || "500"),
-    MAX_DOCUMENT_UPLOAD_MB: parseInt(process.env.NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB || "50"),
-    MAX_FILES_UPLOAD_MB: parseInt(process.env.NEXT_PUBLIC_MAX_FILES_UPLOAD_MB || "500"),
   };
 }
 

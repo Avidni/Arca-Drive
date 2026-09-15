@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { MIN_UPLOAD_LIMIT_MB, MAX_UPLOAD_LIMIT_MB } from "@/lib/upload-limits";
+
+const uploadLimit = z
+  .number()
+  .int()
+  .min(MIN_UPLOAD_LIMIT_MB)
+  .max(MAX_UPLOAD_LIMIT_MB)
+  .optional();
 
 const upsertSchema = z.object({
   require_mfa_for_sensitive_actions: z.boolean().optional(),
   require_mfa_for_private_files: z.boolean().optional(),
   require_email_otp_for_sensitive_actions: z.boolean().optional(),
   default_upload_visibility: z.enum(["public", "private"]).optional(),
+  max_image_upload_mb: uploadLimit,
+  max_video_upload_mb: uploadLimit,
+  max_document_upload_mb: uploadLimit,
+  max_files_upload_mb: uploadLimit,
 });
 
 export async function GET() {

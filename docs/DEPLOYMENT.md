@@ -171,9 +171,9 @@ Add all variables from `.env.example`:
 - `R2_BUCKET_NAME`
 - `R2_ENDPOINT`
 - `R2_PUBLIC_BASE_URL`
-- `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB`
-- `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB`
-- `NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB`
+
+Upload limits are not environment variables — they are configured per user in
+Settings and stored in the database.
 
 ### Important Vercel Rule
 Do not design uploads so that large files are streamed through Vercel functions. Vercel should:
@@ -231,7 +231,6 @@ Keep the following aligned between local and production:
 - app URL
 - Supabase redirect settings
 - media base URL strategy
-- upload limits
 - allowed file categories
 
 ## 8. Operational Practices
